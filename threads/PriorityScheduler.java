@@ -169,11 +169,11 @@ public class PriorityScheduler extends Scheduler {
 			// else remove nextThread from waitQueue and return it
 			else {
 				
-				KThread nextThread = pickNextThread();
+				ThreadState nextThread = pickNextThread();
 				waitQueue.remove(nextThread);
-				getThreadState(nextThread).acquire(this);
+				nextThread.acquire(this);
 				
-				return nextThread;
+				return nextThread.thread;
 			}
 		}
 
@@ -183,7 +183,7 @@ public class PriorityScheduler extends Scheduler {
 		 * 
 		 * @return the next thread that <tt>nextThread()</tt> would return.
 		 */
-		protected KThread pickNextThread() {
+		protected ThreadState pickNextThread() {
 			
 			// if waitQueue of ThreadState is empty, return null
 			if(waitQueue.isEmpty()){
@@ -193,18 +193,16 @@ public class PriorityScheduler extends Scheduler {
 			// else return the next ThreadState to be returned from the waitQueue
 			else{
 				
-				// ThreadState to return
-				KThread returnTS = null;
+				/// ThreadState to return
+				ThreadState returnTS = null;
 				
 				// iterate through the waitQueue ad select the ThreadState with highest priority
-				ListIterator<KThread> itr = waitQueue.listIterator();
+				ListIterator<ThreadState> itr = waitQueue.listIterator();
 				while(itr.hasNext()){
-					KThread curr = itr.next();
-					int priority = getThreadState(curr).getEffectivePriority();
-	                
+					ThreadState curr = itr.next();
 					
 					// if the current ThreadState has a higher priority, select it to be the returnTS
-					if((returnTS == null) || priority > getThreadState(returnTS).getEffectivePriority()){
+					if((returnTS == null) || curr.priority > returnTS.priority){
 						returnTS = curr;
 					}
 				}
@@ -244,11 +242,12 @@ public class PriorityScheduler extends Scheduler {
 				this.effective = priorityMinimum;
 				
 				// iterate through each ThreadState in waitQueue
-				ListIterator<KThread> itr = waitQueue.listIterator();
+				ListIterator<ThreadState> itr = waitQueue.listIterator();
 				while(itr.hasNext()) {
-					KThread curr = itr.next();
-					this.effective = Math.max(this.effective, getThreadState(curr).getEffectivePriority());
+					ThreadState curr = itr.next();
+					this.effective = Math.max(this.effective, curr.getEffectivePriority());
 				}
+
 				this.NeedPriorityChange = false;
 			}
 			
@@ -271,7 +270,7 @@ public class PriorityScheduler extends Scheduler {
 		private ThreadState holder = null;
 		
 		// waitQueue - queue of ThreadStates waiting on this resource
-		private LinkedList<KThread> waitQueue = new LinkedList<KThread>();
+		private LinkedList<ThreadState> waitQueue = new LinkedList<ThreadState>();
 		
 		// priotyChange - set true when a new thread is added to the queue or when any queue sets itself to NeedPriorityChange
 		private boolean NeedPriorityChange;  
@@ -326,7 +325,6 @@ public class PriorityScheduler extends Scheduler {
 					PriorityQueue curr = (PriorityQueue)itr.next();
 					effective =  Math.max(effective, curr.getEffectivePriority());
 				}
-			
 			}
 			
 			return effective;
@@ -363,21 +361,17 @@ public class PriorityScheduler extends Scheduler {
 			Lib.assertTrue(Machine.interrupt().disabled());
 			Lib.assertTrue(waitQueue.waitQueue.indexOf(thread) == -1);
 			
-			
 			// adding waitQueue to waitingOn list
-			
-			waitQueue.waitQueue.add(thread);
+			waitQueue.waitQueue.add(getThreadState(thread));
 			waitQueue.setNeedPriorityChange();
 			
 			waitingOn = waitQueue;
-			
 			
 			// if waitQueue was previously in ThreadResourceQueue, remove it and set its holder to null
 			if(ThreadResourceQueue.indexOf(waitQueue) != -1) {
 				ThreadResourceQueue.remove(waitQueue);
 				waitQueue.holder = null;
 			}
-			
 		}
 
 		/**
